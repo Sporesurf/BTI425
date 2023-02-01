@@ -18,7 +18,6 @@ const movieSchema = new Schema({
     wins: Number,
     nominations: Number,
     text: String,
-    ç,
   },
   lastupdated: Date,
   year: Number,
