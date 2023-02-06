@@ -1,19 +1,17 @@
 const express = require('express');
-const HTTP_PORT = process.env.PORT || 3000;
 const cors = require('cors');
-require('dotenv').config();
-
 const MoviesDB = require('./modules/moviesDB.js');
 const db = new MoviesDB();
-
 const app = express();
 
+require('dotenv').config('moviesAPI-VladoTomovic.env');
+
 app.use(cors());
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('API Listening...');
-});
+const HTTP_PORT = process.env.PORT || 3000;
 
+//...............................Initialize the Server...............................
 db.initialize(process.env.MONGODB_CONN_STRING)
   .then(() => {
     app.listen(HTTP_PORT, () => {
@@ -24,22 +22,24 @@ db.initialize(process.env.MONGODB_CONN_STRING)
     console.log(err);
   });
 
+// ....................................API Routes....................................
+app.get('/', (req, res) => {
+  res.send('API Listening...');
+});
+
 // POST /api/movies
 // This route uses the body of the request to add a new "Movie" document to the collection and return the
 // newly created movie object / fail message to the client.
 
 app.post('/api/movies', (req, res) => {
-  if (Object.keys(req.body).length == 0)
-    res.status(500).json({ error: 'Invalid movie title' });
-  else {
-    db.addNewMovie(req.body)
-      .then((data) => {
-        res.status(201).json(data);
-      })
-      .catch((err) => {
-        res.status(500).json({ error: err });
-      });
-  }
+  db.addNewMovie(req.body)
+    .then((movie) => {
+      res.status(201).json(movie);
+    })
+    .catch((err) => {
+      res.status(400).json(err);
+      console.log('Bad Request');
+    });
 });
 
 // GET /api/movies
@@ -49,18 +49,18 @@ app.post('/api/movies', (req, res) => {
 // this case, it will show both “The Avengers” films).
 
 app.get('/api/movies', (req, res) => {
-  if (!req.query.page || req.query.perPage)
-    res.status(500).json({ error: 'Bad query params' });
+  if (!req.query.page || !req.query.perPage)
+    res.status(500).json({ message: 'Missing query parameters' });
   else {
     db.getAllMovies(req.query.page, req.query.perPage, req.query.title)
-      .then((data) => {
-        if (data.length == 0) res.status(204).json({ message: 'No content' });
-        else res.status(201).json(data);
+      .then((movies) => {
+        res.status(200).json(movies);
       })
       .catch((err) => {
-        res.status(500).json({ error: err });
+        res.status(400).json(err);
+        console.log('Bad Request');
       });
-  }
+  } // Pagination page 1 not working
 });
 
 //  GET /api/movies
@@ -68,13 +68,13 @@ app.get('/api/movies', (req, res) => {
 // /api/movies/573a1391f29313caabcd956e. It will use this parameter to return a specific "Movie" object to
 // the client.
 
-app.get('api/movies/:_id', (req, res) => {
+app.get('/api/movies/:_id', (req, res) => {
   db.getMovieById(req.params._id)
-    .then((data) => {
-      res.status(201).json(data);
+    .then((movie) => {
+      res.status(201).json(movie);
     })
     .catch((err) => {
-      res.status(500).json({ error: err });
+      res.status(500).json(err);
     });
 });
 
@@ -85,18 +85,13 @@ app.get('api/movies/:_id', (req, res) => {
 // client.
 
 app.put('/api/movies/:_id', (req, res) => {
-  if (Object.keys(req.body).length === 0)
-    res.status(500).json({ error: 'Body is invalid' });
-  else {
-    db.updateMovieById(req.body, req.params._id).then(() => {
-      res
-        .status(201)
-        .json({ message: 'Movie title updated: Success' })
-        .catch((err) => {
-          res.status(500).json({ error: err });
-        });
+  db.updateMovieById(req.body, req.params._id)
+    .then(() => {
+      res.status(200).json(`movie ${req.params._id}  updated`);
+    })
+    .catch((err) => {
+      res.status(404).json(err);
     });
-  }
 });
 
 //  DELETE /api/movies
@@ -107,9 +102,11 @@ app.put('/api/movies/:_id', (req, res) => {
 app.delete('/api/movies/:_id', (req, res) => {
   db.deleteMovieById(req.params._id)
     .then(() => {
-      res.status(201).json({ message: 'Movie deleted: Success' });
+      res.status(201).json(`movie ${req.params._id} deleted`);
     })
     .catch((err) => {
-      res.status(500).json({ error: err });
+      res.status(404).json(err);
     });
 });
+
+//pw 12341234
